@@ -10,6 +10,7 @@ import qualified System.Info as I
 import Text.Read
 import MicroCabal.Backend.GHC
 import MicroCabal.Backend.MHS
+import MicroCabal.Backend.Yale
 import MicroCabal.Cabal
 import MicroCabal.Env
 import MicroCabal.Glob
@@ -58,7 +59,7 @@ decodeCommonArgs env0 = do
   args <- getArgs
   -- The default backend is only probed when no other is chosen, so mhs
   -- need not be installed to use --ghc.
-  env <- if any (`elem` ["--ghc", "--mhs"]) (takeWhile ("-" `isPrefixOf`) args) then
+  env <- if any (`elem` ["--ghc", "--mhs", "--yale"]) (takeWhile ("-" `isPrefixOf`) args) then
            return env0
          else do
            be <- mhsBackend env0
@@ -72,6 +73,7 @@ decodeCommonArgs env0 = do
       loop e (('-':'a':s)    : as) = loop e{ pkgPath = Just $ maybe s (++ (':' : s)) (pkgPath e) } as
       loop e ("--ghc"        : as) = do be <- ghcBackend env; loop e{ backend = be } as
       loop e ("--mhs"        : as) = do be <- mhsBackend env; loop e{ backend = be } as
+      loop e ("--yale"       : as) = do be <- yaleBackend env; loop e{ backend = be } as
       loop e ("--dry-run"    : as) = loop e{ dryRun = True } as
       loop e ("--nightly"    : as) = loop e{ useNightly = True } as
       loop e ("--no-nightly" : as) = loop e{ useNightly = False } as
@@ -559,6 +561,7 @@ cmdHelp _ _ = putStrLn "\
   \  -r                            do recursive installs for missing packages\n\
   \  --ghc                         compile using ghc\n\
   \  --mhs                         compile using mhs (default)\n\
+  \  --yale                        compile using yale-haskell\n\
   \  --git=URL                     fetch from the Git repo instead of hackage\n\
   \  --dry-run                     do NOT execute the commands, just print\n\
   \  --no-nightly                  use latest versioned snapshot from stackage instead of nightly\n\

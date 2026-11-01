@@ -30,6 +30,7 @@ executable mcabal
   default-extensions:  MultiParamTypeClasses ScopedTypeVariables PatternGuards
   other-modules:       MicroCabal.Backend.GHC
                        MicroCabal.Backend.MHS
+                       MicroCabal.Backend.Yale
                        MicroCabal.Cabal
                        MicroCabal.Env
                        MicroCabal.Glob
