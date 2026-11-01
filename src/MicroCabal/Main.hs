@@ -51,11 +51,18 @@ setupEnv = do
       env = Env{ instDir = cdir, distDir = "dist-mcabal", pkgPath = Nothing, verbose = 0, depth = 0, eflags = [],
                  backend = error "backend undefined", recursive = False, targets = [TgtLib, TgtFor, TgtExe],
                  gitRepo = Nothing, gitRef = Nothing, dryRun = False, useNightly = True, subDir = Nothing, compOptions = [] }
-  be <- mhsBackend env
-  return env{ backend = be }
+  return env
 
 decodeCommonArgs :: Env -> IO (Env, [String])
-decodeCommonArgs env = do
+decodeCommonArgs env0 = do
+  args <- getArgs
+  -- The default backend is only probed when no other is chosen, so mhs
+  -- need not be installed to use --ghc.
+  env <- if any (`elem` ["--ghc", "--mhs"]) (takeWhile ("-" `isPrefixOf`) args) then
+           return env0
+         else do
+           be <- mhsBackend env0
+           return env0{ backend = be }
   let loop e ("-v"           : as) = loop e{ verbose = verbose e + 1 } as
       loop e ("-q"           : as) = loop e{ verbose = -1 } as
       loop e ("-r"           : as) = loop e{ recursive = True } as
@@ -73,7 +80,7 @@ decodeCommonArgs env = do
                                    | Just r <- stripPrefix "--install=" a
                                    = loop e{ instDir = r } as
       loop e as = return (e, as)
-  loop env =<< getArgs
+  loop env args
 
 decodeCabalFlags :: String -> [(Name, Bool)]
 decodeCabalFlags = map f . words
