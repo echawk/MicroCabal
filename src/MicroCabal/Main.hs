@@ -313,7 +313,11 @@ build env = do
       info = FlagInfo { os = I.os, arch = I.arch, flags = eflags env, impl = comp }
       ncbl@(Cabal sects) = normalizeAndPatch env info cbl
       glob = getGlobal ncbl
-      sectLib s@(Section "library"         _ _) | TgtLib `elem` targets env && isBuildable s = buildLib env glob s
+      -- the package's own (internal) libraries, built before the ones that use them
+      pkgName = case glob of Section _ _ g -> getFieldString g "name"
+      ownLibs = [ n | Section "library" n _ <- sects, n /= pkgName ]
+      sectLib s | unneededLib env glob sects s = return Nothing
+      sectLib s@(Section "library"         _ _) | TgtLib `elem` targets env && isBuildable s = buildLib env glob ownLibs s
       sectLib s@(Section "foreign-library" _ _) | TgtFor `elem` targets env && isBuildable s = buildForeignLib env glob s
       sectLib _ = return Nothing
       sectExe ll s@(Section "executable"   _ _) | TgtExe `elem` targets env && isBuildable s = void $ buildExe env glob s ll
@@ -327,6 +331,27 @@ build env = do
   localLibs <- catMaybes <$> mapM sectLib sects'
   mapM_ (sectExe localLibs) sects'
   mapM_ (sectTst localLibs) sects'
+
+-- An internal library that nothing built uses (the main library, and
+-- the executables and test suites when they are built): vector's
+-- benchmarks-O2, used only by its benchmarks.
+unneededLib :: Env -> Section -> [Section] -> Section -> Bool
+unneededLib env (Section _ _ g) sects (Section "library" name _) =
+  name /= pkgName && name `notElem` closeLibs [] roots
+  where
+    pkgName = getFieldString g "name"
+    ownLibs = [ n | Section "library" n _ <- sects, n /= pkgName ]
+    depsOf (Section _ _ f) =
+      concat [ if p == pkgName then subs else [p] | (p, subs, _) <- getBuildDepends f ]
+    roots = [ s | s@(Section k n _) <- sects,
+                  (k == "library" && n == pkgName) ||
+                  (k == "executable" && TgtExe `elem` targets env) ||
+                  (k == "test-suite" && TgtTst `elem` targets env) ]
+    closeLibs seen [] = seen
+    closeLibs seen (x : xs) =
+      let new = [ d | d <- depsOf x, d `elem` ownLibs, d `notElem` seen ]
+      in  closeLibs (seen ++ new) (xs ++ [ s | s@(Section "library" n _) <- sects, n `elem` new ])
+unneededLib _ _ _ _ = False
 
 isBuildable :: Section -> Bool
 isBuildable (Section _ _ flds) = getFieldBool True flds "buildable"
@@ -357,11 +382,11 @@ hackLocalLibs env locals vers (Section stype sname flds) =
           in  replField mhso mfs' fs
         localFiles = map (\ n -> distDir env ++ "/" ++  n ++ "-" ++ showVersion vers ++ ".pkg") locals
 
-buildLib :: Env -> Section -> Section -> IO (Maybe Name)
-buildLib env glob sect@(Section _ name flds) = do
+buildLib :: Env -> Section -> [Name] -> Section -> IO (Maybe Name)
+buildLib env glob ownLibs sect@(Section _ name flds) = do
   message env 0 $ "Building library " ++ name
   createPathFile env glob
-  let pkgs = getBuildDependsPkg flds
+  let pkgs = filter (`notElem` ownLibs) (getBuildDependsPkg flds)
   mapM_ (checkDep env) pkgs
   buildPkgLib (backend env) env glob sect
   return (Just name)
@@ -421,6 +446,7 @@ install env = do
       ncbl@(Cabal sects) = normalizeAndPatch env info cbl
       glob = getGlobal ncbl
       sect s@(Section "executable" _ _) | TgtExe `elem` targets env && isBuildable s = installExe env glob s
+      sect s | unneededLib env glob sects s = return ()
       sect s@(Section "library"    _ _) | TgtLib `elem` targets env && isBuildable s = installLib env glob s
       sect _ = return ()
   message env 3 $ "Unnormalized Cabal file:\n" ++ show cbl
