@@ -386,6 +386,7 @@ pSection = pWhite *> (
   <|< Section <$> pKeyWordNC "flag"              <*>    pName <*> pFields
   <|< Section <$> pKeyWordNC "test-suite"        <*>    pName <*> pFields
   <|< Section <$> pKeyWordNC "benchmark"         <*>    pName <*> pFields
+  <|< Section <$> pKeyWordNC "custom-setup"      <*> pure "" <*> pFields
   )
   where libName = pName <|< pure ""
 
@@ -402,6 +403,7 @@ parsers =
   , "autogen-modules"                # pVComma
   , "build-depends"                  # pVLibs
   , "build-tool-depends"             # pVLibs  -- ??? pVComma -- XXX
+  , "setup-depends"                  # pVLibs
   , "build-tools"                    # pVLibs -- XXX
   , "buildable"                      # (VBool <$> pBoolNL)
   , "c-sources"                      # pVOptComma
@@ -410,6 +412,7 @@ parsers =
   , "cmm-options"                    # pVOptComma
   , "cpp-options"                    # pVOptComma
   , "cxx-options"                    # pVOptComma
+  , "cxx-sources"                    # pVOptComma
   , "default-extensions"             # pVOptComma
   , "default-language"               # (VItem <$> pItem)
   , "exposed-modules"                # pVOptComma
