@@ -15,7 +15,37 @@ import MicroCabal.YAML
 --import Debug.Trace
 
 parseCabal :: FilePath -> String -> Cabal
-parseCabal fn rfile = runP pCabalTop fn $ dropCabalComments rfile
+parseCabal fn rfile = runP pCabalTop fn $ unbraceFields $ dropCabalComments rfile
+
+-- A field whose value is in braces, Cabal's alternative to layout
+-- (cryptohash-sha256's description: {, its text from column 0, up to a
+-- line holding only }): its lines indented under the field instead.
+-- Trailing spaces go (double-conversion's ghc-options: -Werror , which
+-- the list parsers took for another item to come).
+unbraceFields :: String -> String
+unbraceFields = unlines . go . map (reverse . dropWhile (== ' ') . reverse) . lines
+  where
+    go [] = []
+    go (l:ls)
+      | Just (ind, name) <- braceField l =
+          let (body, rest) = break ((== "}") . trim) ls
+          in  (ind ++ name ++ ":") : map (\ b -> ind ++ "  " ++ (if null (trim b) then "." else b)) body
+              ++ go (drop 1 rest)
+      -- braces around a section's or a conditional's body (entropy's
+      -- else { .. }), whose lines are indented anyway: they go
+      | trim l == "}" = go ls
+      | take 1 (trim l) == "}" =   -- } else {
+          go ((takeWhile (== ' ') l ++ dropWhile (== ' ') (drop 1 (dropWhile (== ' ') l))) : ls)
+      | not (null (trim l)), last (trim l) == '{', ':' `notElem` l =
+          reverse (dropWhile (== ' ') (drop 1 (reverse l))) : go ls
+      | otherwise = l : go ls
+    braceField l =
+      let (ind, r) = span (== ' ') l
+          (name, r') = span (\ c -> c /= ':' && c /= ' ') r
+      in  case trim r' of
+            ':':v | not (null name), trim v == "{" -> Just (ind, name)
+            _ -> Nothing
+    trim = dropWhile (== ' ') . reverse . dropWhile (== ' ') . reverse
 
 parseYAML :: FilePath -> String -> YAMLValue
 parseYAML fn s =
