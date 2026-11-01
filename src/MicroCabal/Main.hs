@@ -302,7 +302,13 @@ createPathFile env gsect@(Section _ _ glob) = do
     "import Data.Version\n" ++
     "version :: Version; version = makeVersion " ++ show (versionBranch vers) ++ "\n" ++
     "getDataDir :: IO FilePath; getDataDir = return " ++ show dataDir ++ "\n" ++
-    "getDataFileName :: FilePath -> IO FilePath; getDataFileName name = fmap (++ '/' : name) getDataDir\n"
+    "getDataFileName :: FilePath -> IO FilePath; getDataFileName name = fmap (++ '/' : name) getDataDir\n" ++
+    -- (Cabal's other directories, under the package's install prefix)
+    "getBinDir :: IO FilePath; getBinDir = return " ++ show (dataPrefix </> "bin") ++ "\n" ++
+    "getLibDir :: IO FilePath; getLibDir = return " ++ show (dataPrefix </> "lib") ++ "\n" ++
+    "getDynLibDir :: IO FilePath; getDynLibDir = return " ++ show (dataPrefix </> "lib") ++ "\n" ++
+    "getLibexecDir :: IO FilePath; getLibexecDir = return " ++ show (dataPrefix </> "libexec") ++ "\n" ++
+    "getSysconfDir :: IO FilePath; getSysconfDir = return " ++ show (dataPrefix </> "etc") ++ "\n"
 
 build :: Env -> IO ()
 build env = do
