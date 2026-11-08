@@ -64,7 +64,7 @@ builtinPackages :: [PackageName]
 builtinPackages =
   [ "base", "ghc-prim", "array", "containers", "bytestring", "text",
     "deepseq", "directory", "filepath", "process", "time", "mtl",
-    "transformers", "parsec", "pretty", "random", "stm", "parallel", "binary",
+    "transformers", "parsec", "pretty", "stm", "parallel", "binary",
     "hashable", "unordered-containers", "scientific", "haskeline",
     "ansi-terminal", "utf8-string", "old-time", "old-locale", "xhtml",
     "unix", "knob",
@@ -91,7 +91,7 @@ builtinPackages =
 -- when a package depends on them: their modules replace the library's
 -- (hspec-core's Test.QuickCheck.Text and the other internals).
 replacedPackages :: [PackageName]
-replacedPackages = [ "QuickCheck" ]
+replacedPackages = [ "QuickCheck", "random" ]
 
 -- The installed packages' database.
 yaleDB :: Env -> FilePath
